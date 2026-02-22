@@ -1,0 +1,10 @@
+Metric,Value
+N videos,177
+N comments,5298
+Study period,2010-09 – 2026-02
+"Comments per video (median, IQR)",5 (2–24)
+"Likes per comment (median, IQR)",0 (0–2)
+"Comment length tokens (median, IQR)",21 (10–42)
+Speaker type distribution (%),"{'general': 48.9, 'patient': 46.9, 'advertiser': 2.1, 'caregiver': 1.7, 'clinician': 0.4}"
+Gender inferred distribution (%),"{'unknown': 57.4, 'female': 25.0, 'male': 17.6}"
+Spam/advertiser proportion (%),2.1

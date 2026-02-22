@@ -1,0 +1,8 @@
+Metric,Value
+misinformation_any N,92
+misinformation_any %,1.7%
+median_likes_misinfo1,0.0
+median_likes_misinfo0,0.0
+Mann_Whitney_p,0.013699431444585497
+OR_high_engagement,0.4875112534807176
+chi2_misinfo_by_topic_p,2.2894375993682666e-24

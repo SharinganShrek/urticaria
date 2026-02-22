@@ -1,0 +1,11 @@
+Topic,median_likes,IQR
+"Triggers & causal beliefs (food, cold, stress, infections)",1.0,0–2
+"Advanced therapy & biomedical (MCAS, Xolair, dermatographism)",1.0,0–3
+"Symptom phenotype: itch, wheals, rash, burning",1.0,0–2
+Alternative remedies & cure narratives (misinfo-prone),0.0,0–1
+Chronic lived experience & persistence,1.0,0–2
+Non-clinical / meta / praise / religion (engagement),0.0,0–2
+Angioedema & airway/ER fear,0.0,0–2
+Conventional treatments & symptom control,0.0,0–1
+Vaccine narratives (COVID shots),0.0,0–2
+Drug-induced angioedema (ACE/BP meds),0.0,0–1

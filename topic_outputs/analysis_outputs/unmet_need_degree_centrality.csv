@@ -1,0 +1,11 @@
+Unmet_need,Degree_centrality
+uncontrolled_symptoms,1.0
+airway_fear,1.0
+medication_side_effect_fear,1.0
+emotional_distress,1.0
+diagnostic_confusion,1.0
+sleep_daily_impairment,1.0
+trigger_uncertainty,0.8888888888888888
+treatment_failure,0.7777777777777777
+misinformation_vulnerability,0.7777777777777777
+access_cost_barrier,0.6666666666666666

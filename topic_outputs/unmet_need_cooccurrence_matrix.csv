@@ -1,0 +1,11 @@
+,uncontrolled_symptoms,airway_fear,treatment_failure,medication_side_effect_fear,trigger_uncertainty,emotional_distress,sleep_daily_impairment,access_cost_barrier,diagnostic_confusion,misinformation_vulnerability
+uncontrolled_symptoms,536,79,27,76,52,81,109,17,28,8
+airway_fear,79,354,13,32,21,49,76,10,18,6
+treatment_failure,27,13,113,18,10,12,25,4,7,2
+medication_side_effect_fear,76,32,18,234,22,31,63,10,13,5
+trigger_uncertainty,52,21,10,22,246,42,44,4,20,13
+emotional_distress,81,49,12,31,42,290,56,5,18,6
+sleep_daily_impairment,109,76,25,63,44,56,533,12,23,11
+access_cost_barrier,17,10,4,10,4,5,12,59,7,3
+diagnostic_confusion,28,18,7,13,20,18,23,7,118,14
+misinformation_vulnerability,8,6,2,5,13,6,11,3,14,113

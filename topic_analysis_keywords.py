@@ -20,11 +20,12 @@ except ImportError:
 try:
     from bertopic import BERTopic
     from sentence_transformers import SentenceTransformer
-    from sklearn.feature_extraction import text as sklearn_text
-    from sklearn.feature_extraction.text import CountVectorizer
     HAS_BERTOPIC = True
 except ImportError:
     HAS_BERTOPIC = False
+
+from sklearn.feature_extraction import text as sklearn_text
+from sklearn.feature_extraction.text import CountVectorizer
 
 import logging
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -50,6 +51,8 @@ HINDI_COMMON_STOP = [
 
 # 10 predefined topic themes — seed keywords for BERTopic guided modeling
 # (and for keyword-based theme assignment)
+# Primary keywords: strong signal. Fallback: weaker, used only when no primary match.
+# Keywords derived from unmatched comment analysis to minimize theme_id=0.
 TOPIC_THEMES = [
     {  # Topic 1 — Chronic urticaria lived experience and persistence
         "id": 1,
@@ -57,86 +60,112 @@ TOPIC_THEMES = [
         "keywords": [
             "chronic", "years", "months", "daily", "every day", "flare", "relapse", "recurring",
             "suffering", "miserable", "ruined", "hopeless", "no cure", "nothing works",
-            "for 5 years", "for years", "for months",
+            "for years", "for months", "yrs", "weeks", "problem", "incurable", "continuous",
+            "persist", "lasting", "gone", "life", "months", "weeks",
         ],
+        "fallback": ["year", "days", "month", "week", "bad", "worse", "tired"],
     },
     {  # Topic 2 — Symptom phenotype: itch, wheals, rash, burning
         "id": 2,
         "name": "Symptom phenotype: itch, wheals, rash, burning",
         "keywords": [
             "itch", "itchy", "itching", "hives", "welts", "wheals", "rash", "bumps", "burning",
-            "red", "skin", "bites",
+            "red", "skin", "bites", "body", "arms", "legs", "painful", "rashes", "lumps",
+            "all over", "irritating", "annoying", "scratch",
         ],
+        "fallback": ["arms", "legs", "back", "chest", "hard", "woke", "morning", "night"],
     },
     {  # Topic 3 — Angioedema episodes and airway/ER fear
         "id": 3,
         "name": "Angioedema & airway/ER fear",
         "keywords": [
-            "angioedema", "swollen lip", "swollen face", "tongue swelling", "throat closing",
-            "cant breathe", "can't breathe", "breathe", "ER", "emergency", "hospital",
-            "epipen", "anaphylaxis", "intubation",
+            "angioedema", "swollen lip", "swollen face", "swollen lips", "lip swollen",
+            "tongue swelling", "throat closing", "throat", "cant breathe", "can't breathe",
+            "breathe", "ER", "emergency", "hospital", "epipen", "anaphylaxis", "intubation",
+            "lips", "lip", "swollen", "swelling", "swell", "swelled", "face", "eyes", "mouth",
+            "puffy", "puffiness", "upper lip", "lower lip",
         ],
+        "fallback": ["tongue", "lips", "lip", "throat", "pregnant"],
     },
     {  # Topic 4 — Drug-induced (ACE inhibitors / BP meds)
         "id": 4,
         "name": "Drug-induced angioedema (ACE/BP meds)",
         "keywords": [
             "lisinopril", "ACE inhibitor", "blood pressure", "BP meds", "medication caused",
-            "side effect", "reaction", "medication",
+            "side effect", "medication", "drug", "prescribed", "pills", "frusemide",
+            "fruzolidone", "minoxidil", "finasteride",
         ],
+        "fallback": ["medication", "medicine", "drug", "prescribed"],
     },
     {  # Topic 5 — Triggers & causal beliefs
         "id": 5,
         "name": "Triggers & causal beliefs (food, cold, stress, infections)",
         "keywords": [
-            "food", "dairy", "milk", "chocolate", "diet", "histamine", "probiotics",
-            "what triggers", "triggers", "cold urticaria", "heat", "pressure", "stress",
-            "infection", "virus", "gut", "keto", "gallbladder", "bile",
+            "food", "foods", "dairy", "milk", "chocolate", "diet", "histamine", "probiotics",
+            "triggers", "triggered", "cold urticaria", "cold air", "cold water", "heat",
+            "pressure", "stress", "infection", "virus", "gut", "keto", "gallbladder", "bile",
+            "allergy", "allergic", "allergies", "cause", "caused", "causes", "eating", "eat",
+            "ate", "exercise", "water", "contact", "air conditioning", "peanut", "salmon",
+            "dehydration", "weed", "smoking", "tick", "tickbite", "alphagal", "celiac",
+            "autoimmune", "thyroid", "hormone", "mosquito", "strep", "parasite",
         ],
+        "fallback": ["cause", "reason", "because", "trigger", "happen", "happened", "happens"],
     },
     {  # Topic 6 — Conventional treatments & symptom control
         "id": 6,
         "name": "Conventional treatments & symptom control",
         "keywords": [
-            "antihistamine", "cetirizine", "zyrtec", "loratadine", "claritin", "fexofenadine",
-            "allegra", "benadryl", "diphenhydramine", "hydroxyzine", "prednisone", "steroid",
-            "hydrocortisone", "famotidine", "pepcid", "montelukast",
+            "antihistamine", "cetirizine", "zyrtec", "loratadine", "claritin", "claritan",
+            "fexofenadine", "allegra", "benadryl", "diphenhydramine", "hydroxyzine",
+            "prednisone", "steroid", "hydrocortisone", "famotidine", "pepcid", "montelukast",
+            "medicine", "treatment", "cream", "vitamin", "vinegar", "apple cider",
+            "calamine", "avil", "dex", "dexa", "allergy panel", "test", "blood work",
+            "allergist", "doctor", "dr", "sir", "mam", "treat", "treating", "cure",
+            "solution", "rid", "get rid", "home remedies", "advice", "suggest",
         ],
+        "fallback": ["doctor", "dr", "treatment", "medicine", "test", "help", "tell", "suggest"],
     },
     {  # Topic 7 — Advanced therapy and complex biomedical framing
         "id": 7,
         "name": "Advanced therapy & biomedical (MCAS, Xolair, dermatographism)",
         "keywords": [
-            "xolair", "omalizumab", "biologic", "injection", "mg", "300 mg",
-            "MCAS", "mast cell activation", "dermatographism", "dermatographia",
-            "inducible urticaria",
+            "xolair", "zolair", "zolaire", "omalizumab", "biologic", "injection", "mg",
+            "300 mg", "MCAS", "mast cell activation", "dermatographism", "dermatographia",
+            "inducible urticaria", "colonoscopy", "querectin",
         ],
+        "fallback": ["biologic", "injection", "shots"],
     },
-    {  # Topic 8 — Alternative remedies, cure narratives, supplement (misinfo-prone)
+    {  # Topic 8 — Alternative remedies, cure narratives (misinfo-prone)
         "id": 8,
         "name": "Alternative remedies & cure narratives (misinfo-prone)",
         "keywords": [
-            "herbal", "herbs", "natural cure", "detox", "cleanse", "liver cleanse",
-            "ayurveda", "homeopathy", "iherb", "planet ayurveda", "cured", "miracle",
-            "guaranteed", "DM me", "WhatsApp", "order", "buy",
+            "herbal", "herbs", "natural cure", "natural", "detox", "cleanse", "liver cleanse",
+            "parasite cleanse", "ayurveda", "ayurvedic", "homeopathy", "iherb", "planet ayurveda",
+            "cured", "miracle", "guaranteed", "DM me", "WhatsApp", "order", "buy",
+            "apple cider vinegar", "neem oil", "ghee", "black pepper", "patanjali",
+            "acapulco plant", "dr berg", "berg",
         ],
+        "fallback": ["cured", "cure", "remedy", "natural", "herbal", "detox", "cleanse"],
     },
     {  # Topic 9 — Vaccine narratives (COVID shots)
         "id": 9,
         "name": "Vaccine narratives (COVID shots)",
         "keywords": [
-            "covid vaccine", "vaccine", "shot", "booster", "pfizer", "after vaccine",
-            "triggered my hives", "covid",
+            "covid vaccine", "vaccine", "vaccines", "shot", "shots", "booster", "boosters",
+            "pfizer", "moderna", "after vaccine", "triggered my hives", "covid",
         ],
+        "fallback": ["vaccine", "booster", "covid"],
     },
     {  # Topic 10 — Non-clinical / meta / praise / religion (engagement-only)
         "id": 10,
         "name": "Non-clinical / meta / praise / religion (engagement)",
         "keywords": [
-            "thanks", "thank you", "great video", "informative", "helpful", "bless you",
-            "god", "jesus", "please make more", "share link", "compliments", "awesome",
-            "love this", "appreciate",
+            "thanks", "thank you", "ty", "tysm", "great video", "informative", "helpful",
+            "bless you", "god", "jesus", "please make more", "share link", "compliments",
+            "awesome", "love this", "appreciate", "wow", "nice", "good", "hope", "peace",
+            "best", "great", "love", "subscribed", "video", "videos",
         ],
+        "fallback": ["thanks", "thank", "great", "good", "nice", "love", "hope", "wow", "appreciate"],
     },
 ]
 
@@ -157,29 +186,44 @@ def build_seed_topic_list():
     return seed_list
 
 
-def keyword_score_for_theme(text: str, theme: dict) -> int:
-    """Count how many theme keywords (as whole-word/substring) appear in text. Case-insensitive."""
+def keyword_score_for_theme(text: str, theme: dict, use_fallback: bool = False) -> float:
+    """Count how many theme keywords (whole-word) appear in text. Case-insensitive.
+    If use_fallback, include fallback keywords (lower weight)."""
     if pd.isna(text) or not text:
-        return 0
+        return 0.0
     t = " " + text.lower() + " "
-    score = 0
+    score = 0.0
     for kw in theme["keywords"]:
         k = kw.lower().replace("'", "")
-        # whole-word or as phrase
         if re.search(r"\b" + re.escape(k) + r"\b", t):
-            score += 1
+            score += 1.0
+    if use_fallback and "fallback" in theme:
+        for kw in theme["fallback"]:
+            k = kw.lower().replace("'", "")
+            if re.search(r"\b" + re.escape(k) + r"\b", t):
+                score += 0.5  # weaker weight for fallback
     return score
 
 
 def assign_theme_by_keywords(text: str) -> tuple:
-    """Return (theme_id, theme_name) with highest keyword score; 0 if no match."""
-    best_id, best_name, best_score = 0, "No keyword match", 0
+    """Return (theme_id, theme_name) with highest keyword score; 0 if no match.
+    Two-pass: primary keywords first; if no match, use fallback keywords."""
+    best_id, best_name, best_score = 0, "No keyword match", 0.0
+    # Pass 1: primary keywords only
     for theme in TOPIC_THEMES:
-        s = keyword_score_for_theme(text, theme)
+        s = keyword_score_for_theme(text, theme, use_fallback=False)
         if s > best_score:
             best_score = s
             best_id = theme["id"]
             best_name = theme["name"]
+    # Pass 2: if no match, try with fallback keywords
+    if best_score == 0:
+        for theme in TOPIC_THEMES:
+            s = keyword_score_for_theme(text, theme, use_fallback=True)
+            if s > best_score:
+                best_score = s
+                best_id = theme["id"]
+                best_name = theme["name"]
     return (best_id, best_name)
 
 
@@ -200,58 +244,50 @@ def main():
 
     df["theme_id"] = theme_ids
     df["theme_name"] = theme_names
+    n_unmatched = (np.array(theme_ids) == 0).sum()
+    print(f"  After keyword assignment: {n_unmatched} unmatched ({100*n_unmatched/n:.1f}%)")
 
-    # Optional: BERTopic (when available)
-    if HAS_BERTOPIC:
-        domain_stop = [
-            "hives", "urticaria", "get", "got", "getting", "really", "one", "like",
-            "also", "know", "think", "people", "would", "could", "can", "please",
-            "thank", "thanks", "help", "need", "want", "im", "ive", "dont", "doesnt",
-        ]
-        all_stops = list(sklearn_text.ENGLISH_STOP_WORDS) + domain_stop + HINDI_COMMON_STOP
-        vectorizer = CountVectorizer(stop_words=all_stops, max_features=5000)
-        seed_topic_list = build_seed_topic_list()
-        print("Initializing BERTopic (guided with 10 seed topics)...")
-        embedding_model = SentenceTransformer(EMBEDDING_MODEL)
+    # Embedding fallback: assign remaining unmatched to nearest theme centroid
+    if HAS_BERTOPIC and n_unmatched > 0:
+        print("  Embedding fallback for unmatched comments...")
         try:
-            topic_model = BERTopic(
-                embedding_model=embedding_model,
-                vectorizer_model=vectorizer,
-                min_topic_size=MIN_TOPIC_SIZE,
-                verbose=True,
-                calculate_probabilities=False,
-                nr_topics="auto",
-                seed_topic_list=seed_topic_list,
-            )
-        except TypeError:
-            topic_model = BERTopic(
-                embedding_model=embedding_model,
-                vectorizer_model=vectorizer,
-                min_topic_size=MIN_TOPIC_SIZE,
-                verbose=True,
-                calculate_probabilities=False,
-                nr_topics="auto",
-            )
-        print("Fitting BERTopic (this may take several minutes)...")
-        topics_bertopic, probs = topic_model.fit_transform(docs)
-        df["topic_id_bertopic"] = [t if t != -1 else "Outlier" for t in topics_bertopic]
-        info = topic_model.get_topic_info()
-        table_rows = []
-        for _, row in info.iterrows():
-            tid = row["Topic"]
-            count = int(row["Count"])
-            pct = 100 * count / n
-            topic_words = topic_model.get_topic(tid)
-            top_words = ", ".join([w for w, _ in topic_words[:N_TOP_WORDS]]) if topic_words else ("(outliers)" if tid == -1 else "")
-            repr_docs = topic_model.get_representative_docs(tid) or []
-            repr_str = " | ".join([d[:80] + "..." if len(d) > 80 else d for d in repr_docs[:N_REPR_DOCS]])
-            table_rows.append({"Topic ID": tid if tid != -1 else "Outlier", "Size": count, "Size (%)": f"{pct:.1f}%", "Top Words": top_words, "Representative Comments": repr_str})
-        table_df = pd.DataFrame(table_rows)
-        table_df.to_csv(OUTPUT_DIR / "table2_topic_summary.csv", index=False)
-        print(f"  Table 2 (BERTopic) saved: {OUTPUT_DIR / 'table2_topic_summary.csv'}")
-    else:
-        print("BERTopic not installed (optional). Using keyword-based themes only.")
-        df["topic_id_bertopic"] = ""
+            from sentence_transformers import SentenceTransformer
+            emb_model = SentenceTransformer(EMBEDDING_MODEL)
+            unmatched_idx = [i for i in range(n) if theme_ids[i] == 0]
+            matched_mask = np.array(theme_ids) != 0
+            # Centroids per theme (from matched comments)
+            theme_embeddings = {tid: [] for tid in range(1, 11)}
+            matched_docs = [docs[i] for i in range(n) if matched_mask[i]]
+            matched_tids = [theme_ids[i] for i in range(n) if matched_mask[i]]
+            if matched_docs:
+                all_embs = emb_model.encode(matched_docs, show_progress_bar=False)
+                for i, tid in enumerate(matched_tids):
+                    theme_embeddings[tid].append(all_embs[i])
+                centroids = {}
+                for tid in range(1, 11):
+                    arr = np.array(theme_embeddings[tid])
+                    centroids[tid] = arr.mean(axis=0) if len(arr) > 0 else None
+                # Encode unmatched and assign to nearest centroid
+                unmatched_docs = [docs[i] for i in unmatched_idx]
+                un_embs = emb_model.encode(unmatched_docs, show_progress_bar=False)
+                tid_to_name = {t["id"]: t["name"] for t in TOPIC_THEMES}
+                for k, i in enumerate(unmatched_idx):
+                    vec = un_embs[k]
+                    best_tid, best_dist = 0, float("inf")
+                    for tid, c in centroids.items():
+                        if c is not None:
+                            d = float(np.linalg.norm(vec - c))
+                            if d < best_dist:
+                                best_dist, best_tid = d, tid
+                    if best_tid > 0:
+                        theme_ids[i] = best_tid
+                        theme_names[i] = tid_to_name[best_tid]
+                df["theme_id"] = theme_ids
+                df["theme_name"] = theme_names
+                n_after = (np.array(theme_ids) == 0).sum()
+                print(f"  After embedding fallback: {n_after} unmatched ({100*n_after/n:.1f}%)")
+        except Exception as e:
+            print(f"  Embedding fallback skipped: {e}")
 
     # Summary by theme (keyword-based)
     theme_counts = pd.Series(theme_ids).value_counts().sort_index()
@@ -277,6 +313,51 @@ def main():
     theme_df.to_csv(theme_path, index=False)
     print(f"  Theme (keyword) summary saved: {theme_path}")
 
+    # Table: 10-theme summary with top words and representative comments (final version)
+    domain_stop = [
+        "hives", "urticaria", "get", "got", "getting", "really", "one", "like",
+        "also", "know", "think", "people", "would", "could", "can", "please",
+        "thank", "thanks", "help", "need", "want", "im", "ive", "dont", "doesnt",
+    ]
+    all_stops = list(sklearn_text.ENGLISH_STOP_WORDS) + domain_stop + HINDI_COMMON_STOP
+    cv = CountVectorizer(stop_words=all_stops, max_features=5000)
+    summary_rows = []
+    for theme in TOPIC_THEMES:
+        tid = theme["id"]
+        subset = df[df["theme_id"] == tid]
+        count = len(subset)
+        pct = 100 * count / n
+        docs_t = subset[TEXT_COL].fillna("").astype(str).tolist()
+        if docs_t:
+            try:
+                X = cv.fit_transform(docs_t)
+                sums = np.asarray(X.sum(axis=0)).flatten()
+                idx = np.argsort(-sums)[:N_TOP_WORDS]
+                vocab = cv.get_feature_names_out()
+                top_words = ", ".join([vocab[i] for i in idx if sums[i] > 0][:N_TOP_WORDS])
+            except Exception:
+                top_words = ""
+            repr_docs = list(subset[TEXT_COL].dropna().astype(str))
+            np.random.seed(42)
+            if len(repr_docs) > N_REPR_DOCS:
+                repr_docs = list(np.random.choice(repr_docs, N_REPR_DOCS, replace=False))
+            repr_str = " | ".join([d[:80] + "..." if len(d) > 80 else d for d in repr_docs[:N_REPR_DOCS]])
+        else:
+            top_words = ""
+            repr_str = ""
+        summary_rows.append({
+            "Theme ID": tid,
+            "Theme Name": theme["name"],
+            "Size": count,
+            "Size (%)": f"{pct:.1f}%",
+            "Top Words": top_words,
+            "Representative Comments": repr_str,
+        })
+    summary_df = pd.DataFrame(summary_rows)
+    summary_path = OUTPUT_DIR / "table_theme_summary.csv"
+    summary_df.to_csv(summary_path, index=False)
+    print(f"  Theme summary (final) saved: {summary_path}")
+
     # Figure: theme prevalence (keyword-based)
     plot_df = theme_df[theme_df["Theme ID"] > 0].copy()
     if len(plot_df) > 0 and HAS_MATPLOTLIB:
@@ -299,9 +380,10 @@ def main():
     elif len(plot_df) > 0 and not HAS_MATPLOTLIB:
         print("  Skipping figure (matplotlib not installed)")
 
-    # Save comments with both BERTopic topic and theme_id/theme_name
+    # Save comments with theme_id/theme_name (topic_id_bertopic not used)
+    df_out = df.drop(columns=["topic_id_bertopic"], errors="ignore")
     out_csv = OUTPUT_DIR / "comments_with_speaker_gender_and_topics.csv"
-    df.to_csv(out_csv, index=False)
+    df_out.to_csv(out_csv, index=False)
     print(f"  Comments with topics saved: {out_csv}")
 
     # Console summary
@@ -312,14 +394,7 @@ def main():
     print("\n" + "=" * 80)
     print("SUMMARY")
     print("=" * 80)
-    if HAS_BERTOPIC and "topic_id_bertopic" in df.columns and (df["topic_id_bertopic"] != "").any():
-        # BERTopic was run: topic_id is int or "Outlier"
-        bt = df["topic_id_bertopic"]
-        n_out = (bt == "Outlier").sum()
-        n_bertopic = n - n_out
-        print(f"  BERTopic topics (excluding outliers): {n_bertopic}")
-        print(f"  BERTopic outliers: {n_out} ({100*n_out/n:.1f}%)")
-    print(f"  Theme assignment: keyword-based (10 predefined themes)")
+    print(f"  Theme assignment: keyword-based (10 predefined themes) + embedding fallback")
     print(f"  Outputs in: {OUTPUT_DIR}/")
 
 
